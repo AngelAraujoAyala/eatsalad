@@ -1,35 +1,70 @@
-import { Controller, Get, Post, Body, Delete, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch, // Usamos Patch en lugar de Put
+  Param,
+  Delete,
+  ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { UseInterceptors, UploadedFile } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+
+// Definimos la estructura real que llega desde el FormData del Frontend
+interface CreateCategoryRaw {
+  name: string;
+}
 
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
+
+  @Post()
+  @UseInterceptors(FileInterceptor('file'))
+  create(
+    @Body() body: CreateCategoryRaw,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const cleanCategoryDto: CreateCategoryDto = {
+      name: body.name,
+    };
+
+    // Delegamos la subida de imagen a Supabase dentro del servicio
+    return this.categoriesService.createWithImage(cleanCategoryDto, file);
+  }
 
   @Get()
   findAll() {
     return this.categoriesService.findAll();
   }
 
-  @Post()
+  @Get(':id')
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.categoriesService.findOne(id);
+  }
+
+  @Patch(':id') // Mantenemos el método PATCH para actualizaciones parciales
   @UseInterceptors(FileInterceptor('file'))
-  async create(
-    @Body() createCategoryDto: CreateCategoryDto,
-    @UploadedFile() file: Express.Multer.File,
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CreateCategoryRaw,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    let imageUrl: string | undefined;
+    const cleanUpdateDto: UpdateCategoryDto = {
+      name: body.name,
+    };
 
-    if (file) {
-      imageUrl = file.filename || `uploads/${file.originalname}`;
-    }
-
-    return this.categoriesService.create(createCategoryDto, imageUrl);
+    // Pasamos el ID, datos parciales limpios y el archivo opcional al servicio
+    return this.categoriesService.update(id, cleanUpdateDto, file);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.categoriesService.remove(id);
   }
 }

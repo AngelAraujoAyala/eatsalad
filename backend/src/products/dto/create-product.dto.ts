@@ -1,11 +1,9 @@
-// src/products/dto/create-product.dto.ts
 import {
   IsString,
-  IsDecimal,
+  IsNumber,
   IsBoolean,
   IsOptional,
   IsInt,
-  IsArray,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -13,26 +11,40 @@ export class CreateProductDto {
   @IsString()
   name!: string;
 
-  @IsDecimal()
-  price!: number;
-
-  @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
-  isCustomizable!: boolean;
-
+  @IsString()
   @IsOptional()
-  @IsInt()
-  maxProteins?: number;
+  description?: string;
 
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  ingredientsIds?: string[];
+  // 1. Convertir el precio de string a número flotante
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  price?: number;
 
   @IsString()
   categoryId!: string;
 
+  // 2. Convertir los booleanos de texto ("true"/"false") a booleanos reales
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
   @IsOptional()
+  isCustomizable?: boolean;
+
+  // 3. Convertir strings a enteros para la barra de ensaladas
+  @Transform(({ value }) => Number(value))
   @IsInt()
+  @IsOptional()
+  maxProteins?: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @IsOptional()
   maxIngredients?: number;
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
+  @IsOptional()
+  ingredientsIds?: string | string[];
 }

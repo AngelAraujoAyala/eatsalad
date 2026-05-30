@@ -90,6 +90,8 @@ enum OrderStatus {
 model Combo {
   id          String   @id @default(uuid())
   name        String
+  description String?
+  imageUrl    String?
   price       Decimal  @db.Decimal(10, 2)
   isActive    Boolean  @default(true)
   items     ComboItem[]

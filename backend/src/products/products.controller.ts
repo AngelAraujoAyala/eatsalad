@@ -35,7 +35,7 @@ export class ProductsController {
         // Opcional: Validación extra para asegurar que sea imagen y no pese más de 2MB
         validators: [
           new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 2 }),
-          new FileTypeValidator({ fileType: '.(png|jpeg|jpg)' }),
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
         ],
         fileIsRequired: false, // Ponlo en true si la imagen es obligatoria
       }),
@@ -54,5 +54,25 @@ export class ProductsController {
       id,
       updateProductIngredientsDto,
     );
+  }
+
+  @Patch(':id')
+  @UseInterceptors(FileInterceptor('file'))
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 2 }),
+          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    file?: Express.Multer.File,
+  ): Promise<unknown> {
+    // <- Tipado explícito aquí mata el "no-unsafe-return"
+    return this.productsService.update(id, createProductDto, file);
   }
 }

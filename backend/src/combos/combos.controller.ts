@@ -3,22 +3,45 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { CombosService } from './combos.service';
-import { CreateComboDto } from './dto/create-combo.dto';
-import { UpdateComboDto } from './dto/update-combo.dto';
+import { CreateComboDto, ComboItemDto } from './dto/create-combo.dto'; // 👈 Importamos también ComboItemDto para el cast
+import { FileInterceptor } from '@nestjs/platform-express';
+
+interface CreateComboRaw {
+  name: string;
+  description?: string;
+  price: string;
+  isActive?: string;
+  items: string;
+}
 
 @Controller('combos')
 export class CombosController {
   constructor(private readonly combosService: CombosService) {}
 
   @Post()
-  create(@Body() createComboDto: CreateComboDto) {
-    return this.combosService.create(createComboDto);
+  @UseInterceptors(FileInterceptor('file'))
+  create(
+    @Body() body: CreateComboRaw,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const cleanComboDto: CreateComboDto = {
+      name: body.name,
+      description: body.description || undefined, // 👈 SOLUCIÓN: Cambiado 'null' por 'undefined' para alinearse al DTO
+      price: parseFloat(body.price),
+      isActive: body.isActive === 'true',
+      // 👈 SOLUCIÓN: Agregamos el cast explícito 'as ComboItemDto[]' para eliminar el tipo 'any' que arroja JSON.parse
+      items: body.items ? (JSON.parse(body.items) as ComboItemDto[]) : [],
+    };
+
+    return this.combosService.createWithImage(cleanComboDto, file);
   }
 
   @Get()
@@ -31,12 +54,23 @@ export class CombosController {
     return this.combosService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
+  @UseInterceptors(FileInterceptor('file'))
   update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateComboDto: UpdateComboDto,
+    @Body() body: CreateComboRaw,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.combosService.update(id, updateComboDto);
+    const cleanUpdateDto: CreateComboDto = {
+      name: body.name,
+      description: body.description || undefined, // 👈 SOLUCIÓN: Cambiado 'null' por 'undefined'
+      price: parseFloat(body.price),
+      isActive: body.isActive === 'true',
+      // 👈 SOLUCIÓN: Agregamos el cast explícito 'as ComboItemDto[]'
+      items: body.items ? (JSON.parse(body.items) as ComboItemDto[]) : [],
+    };
+
+    return this.combosService.update(id, cleanUpdateDto, file);
   }
 
   @Delete(':id')

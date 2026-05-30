@@ -35,7 +35,6 @@ export class ProductsService {
   // 1. OBTENER TODOS LOS PRODUCTOS ACTIVOS
   async findAll() {
     return this.prisma.product.findMany({
-      where: { isActive: true },
       include: {
         category: {
           select: { id: true, name: true },
@@ -73,11 +72,20 @@ export class ProductsService {
       imageUrl = await this.uploadImageToSupabase(imageFile);
     }
 
-    // Sacamos price, ingredientsIds y categoryId para procesarlos manualmente
-    const { ingredientsIds, categoryId, price, ...productData } = dto;
+    // Extraemos TODAS las variables que vienen del FormData para limpiarlas
+    // y evitar que el ...productData se las lleve sucias a Prisma
+    const {
+      ingredientsIds,
+      categoryId,
+      price,
+      isActive,
+      isCustomizable,
+      maxProteins,
+      maxIngredients,
+      ...productData
+    } = dto;
 
-    // 2. MEJORA FORM-DATA: Si mandas un solo ID en Postman, llega como string.
-    // Si mandas varios, llega como Array. Esto unifica todo a Array para que no truene el .map()
+    // Unificación de ingredientes a Array seguro
     let normalizedIngredients: string[] = [];
     if (ingredientsIds) {
       normalizedIngredients = Array.isArray(ingredientsIds)
@@ -89,9 +97,13 @@ export class ProductsService {
       return await this.prisma.client.product.create({
         data: {
           ...productData,
-          // 3. PARSEO DE PRECIO: form-data manda TODO como string.
-          // Forzamos la conversión a número para que Prisma no rechace el tipo Float/Int.
+          // Casteos explícitos y seguros anti-FormData strings:
           price: price ? Number(price) : 0,
+          maxProteins: maxProteins ? Number(maxProteins) : 0,
+          maxIngredients: maxIngredients ? Number(maxIngredients) : 0,
+          isActive: String(isActive) === 'true' || isActive === true,
+          isCustomizable:
+            String(isCustomizable) === 'true' || isCustomizable === true,
           imageUrl,
           category: {
             connect: { id: categoryId },
@@ -204,5 +216,47 @@ export class ProductsService {
         },
       });
     });
+  }
+
+  async update(
+    id: string,
+    dto: CreateProductDto,
+    imageFile?: Express.Multer.File,
+  ) {
+    // 1. Verificar si el producto existe
+    const existingProduct = await this.findOne(id);
+    let imageUrl = existingProduct.imageUrl;
+
+    // 2. Si subió nueva foto, se procesa
+    if (imageFile) {
+      imageUrl = await this.uploadImageToSupabase(imageFile);
+    }
+
+    try {
+      // Mapeo explícito de propiedades para cumplir con las reglas estrictas de ESLint
+      return await this.prisma.client.product.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          description: dto.description,
+          // FormData envía strings; aseguramos el casteo correcto
+          isActive: String(dto.isActive) === 'true' || dto.isActive === true,
+          isCustomizable:
+            String(dto.isCustomizable) === 'true' ||
+            dto.isCustomizable === true,
+          maxProteins: dto.maxProteins ? Number(dto.maxProteins) : 0,
+          maxIngredients: dto.maxIngredients ? Number(dto.maxIngredients) : 0,
+          price: dto.price ? Number(dto.price) : 0,
+          imageUrl,
+          category: {
+            connect: { id: dto.categoryId },
+          },
+        },
+      });
+    } catch (error) {
+      throw new BadRequestException(
+        `Error al actualizar el producto: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 }
