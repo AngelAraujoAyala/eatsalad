@@ -7,21 +7,21 @@ export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    // CORREGIDO: Accedemos a .client
     return await this.prisma.client.category.findMany({
       include: { products: true },
     });
   }
 
-  async create(dto: CreateCategoryDto) {
-    // CORREGIDO: Accedemos a .client
+  async create(dto: CreateCategoryDto, imageUrl?: string) {
     return await this.prisma.client.category.create({
-      data: { name: dto.name },
+      data: {
+        name: dto.name,
+        imageUrl: imageUrl || null, // <-- Guardamos la URL de la imagen
+      },
     });
   }
 
   async remove(id: string) {
-    // CORREGIDO: Accedemos a .client
     return await this.prisma.client.category.delete({
       where: { id },
     });

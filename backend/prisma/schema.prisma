@@ -10,6 +10,7 @@ generator client {
 model Category {
   id       String    @id @default(uuid())
   name     String
+  imageUrl String?
   products Product[]
 }
 

@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Body, Delete, Param } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('categories')
 export class CategoriesController {
@@ -12,8 +14,18 @@ export class CategoriesController {
   }
 
   @Post()
-  create(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoriesService.create(createCategoryDto);
+  @UseInterceptors(FileInterceptor('file'))
+  async create(
+    @Body() createCategoryDto: CreateCategoryDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    let imageUrl: string | undefined;
+
+    if (file) {
+      imageUrl = file.filename || `uploads/${file.originalname}`;
+    }
+
+    return this.categoriesService.create(createCategoryDto, imageUrl);
   }
 
   @Delete(':id')
