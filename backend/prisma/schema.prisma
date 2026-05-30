@@ -43,8 +43,9 @@ model Ingredient {
   price     Decimal @default(0) @db.Decimal(10, 2)// 0 si es parte de la barra, costo si es extra
   isExtra   Boolean @default(false)
   isActive  Boolean @default(true)
+  imageUrl  String?
 
-  products  ProductIngredient[]
+  products  ProductIngredient[] 
 }
 
 model ProductIngredient {

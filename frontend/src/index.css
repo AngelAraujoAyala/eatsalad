@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased font-sans;
+  margin: 0;
+}
+
+@theme {
+  /* Tus colores de marca personalizados */
+  --color-brand-green: #10b981;    /* Verde esmeralda vibrante */
+  --color-brand-orange: #f97316;   /* Naranja llamativo para los extras */
+}
