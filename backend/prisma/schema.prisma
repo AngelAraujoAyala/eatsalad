@@ -14,6 +14,13 @@ model Category {
   products Product[]
 }
 
+enum IngredientCategory {
+  PROTEINA
+  BARRA
+  COMPLEMENTO
+  ADEREZO
+}
+
 model Product {
   id          String   @id @default(uuid())
   name        String
@@ -31,6 +38,9 @@ model Product {
   isCustomizable Boolean @default(false)
   maxProteins    Int?
   maxIngredients Int?
+  maxBarra             Int?                @default(0) // Ej. Base / Lechugas / Atados
+  maxComplements       Int?                @default(0) // Ej. Toppings secos o crutones
+  maxAderezos         Int?                @default(0) // Ej. Aderezos
   
   orderItems  OrderItem[]
   comboItems  ComboItem[]
@@ -45,6 +55,8 @@ model Ingredient {
   isExtra   Boolean @default(false)
   isActive  Boolean @default(true)
   imageUrl  String?
+
+  category  IngredientCategory?
 
   products  ProductIngredient[] 
 }

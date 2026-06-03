@@ -14,13 +14,16 @@ import { IngredientsService } from './ingredients.service';
 import { CreateIngredientDto } from './dto/create-ingredient.dto';
 import { UpdateIngredientDto } from './dto/update-ingredient.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+// 1. 📦 Importa tu Enum o Tipo desde donde esté definido (ejemplo ficticio)
+import { IngredientCategory } from '@prisma/client';
 
-// Definimos la estructura real que llega desde el FormData de React
+// 2. 🎯 Cambiamos 'string' por 'IngredientCategory'
 interface CreateIngredientRaw {
   name: string;
   price?: string;
   isExtra?: string;
   isActive?: string;
+  category?: IngredientCategory; // ✨ CORREGIDO
 }
 
 @Controller('ingredients')
@@ -33,11 +36,13 @@ export class IngredientsController {
     @Body() body: CreateIngredientRaw,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    // 3. 🎯 Si 'BARRA' es un valor válido del Enum, úsalo directamente o como string si es una unión
     const cleanIngredientDto: CreateIngredientDto = {
       name: body.name,
       price: body.price ? parseFloat(body.price) : 0,
       isExtra: body.isExtra === 'true',
       isActive: body.isActive === 'true',
+      category: body.category,
     };
 
     return this.ingredientsService.createWithImage(cleanIngredientDto, file);
@@ -54,24 +59,20 @@ export class IngredientsController {
   }
 
   @Put(':id')
-  @UseInterceptors(FileInterceptor('file')) // Recuerda hacer append('file', ...) en React
+  @UseInterceptors(FileInterceptor('file'))
   update(
     @Param('id', ParseUUIDPipe) id: string,
-    // 2. Usamos tu interfaz "Raw" porque los datos vienen como string desde el FormData
     @Body() body: CreateIngredientRaw,
-    // 3. Capturamos la imagen si es que el usuario decidió cambiarla (es opcional 'file?')
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    // 4. Limpiamos y casteamos los strings a sus tipos reales
     const cleanUpdateDto: UpdateIngredientDto = {
       name: body.name,
       price: body.price ? parseFloat(body.price) : 0,
       isExtra: body.isExtra === 'true',
       isActive: body.isActive === 'true',
+      category: body.category, // ✨ CORREGIDO (Ya coinciden los tipos)
     };
 
-    // 5. Le pasamos el ID, los datos limpios y el archivo de imagen al servicio
-    // (Asegúrate de que tu service acepte el 'file' en su argumento si vas a procesar la nueva foto)
     return this.ingredientsService.update(id, cleanUpdateDto, file);
   }
 

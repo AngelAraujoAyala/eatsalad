@@ -16,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductIngredientsDto } from './dto/update-product-ingredients.dto';
+import { UpdateProductDto } from './dto/update-product.dto'; // 🔥 Importamos el DTO de actualización
 
 @Controller('products')
 export class ProductsController {
@@ -32,7 +33,7 @@ export class ProductsController {
     @Body() createProductDto: CreateProductDto,
     @UploadedFile(
       new ParseFilePipe({
-        // Opcional: Validación extra para asegurar que sea imagen y no pese más de 2MB
+        // Validación extra para asegurar que sea imagen y no pese más de 2MB
         validators: [
           new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 2 }),
           new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
@@ -60,7 +61,7 @@ export class ProductsController {
   @UseInterceptors(FileInterceptor('file'))
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() createProductDto: CreateProductDto,
+    @Body() updateProductDto: UpdateProductDto, // 🔥 Cambiado a UpdateProductDto para permitir actualizaciones parciales
     @UploadedFile(
       new ParseFilePipe({
         validators: [
@@ -72,7 +73,7 @@ export class ProductsController {
     )
     file?: Express.Multer.File,
   ): Promise<unknown> {
-    // <- Tipado explícito aquí mata el "no-unsafe-return"
-    return this.productsService.update(id, createProductDto, file);
+    // El uso de updateProductDto aquí evita que falle por campos faltantes durante la edición
+    return this.productsService.update(id, updateProductDto, file);
   }
 }

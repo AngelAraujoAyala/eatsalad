@@ -33,6 +33,7 @@ export default function ProductsManager() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
+  // Estado del formulario unificado con los nombres correctos en inglés
   const [formData, setFormData] = useState({
     name: "",
     price: 0,
@@ -41,7 +42,9 @@ export default function ProductsManager() {
     isActive: true,
     isCustomizable: false,
     maxProteins: 0,
-    maxIngredients: 0,
+    maxAderezos: 0,
+    maxBarra: 0,
+    maxComplements: 0, // 🏁 Estandarizado en inglés
     ingredientsIds: [] as string[],
   });
 
@@ -89,7 +92,9 @@ export default function ProductsManager() {
       isActive: true,
       isCustomizable: false,
       maxProteins: 0,
-      maxIngredients: 0,
+      maxAderezos: 0,
+      maxBarra: 0,
+      maxComplements: 0,
       ingredientsIds: [],
     });
     setImageFile(null);
@@ -111,7 +116,9 @@ export default function ProductsManager() {
       isActive: product.isActive,
       isCustomizable: product.isCustomizable,
       maxProteins: product.maxProteins || 0,
-      maxIngredients: product.maxIngredients || 0,
+      maxAderezos: product.maxAderezos || 0,
+      maxBarra: product.maxBarra || 0,
+      maxComplements: product.maxComplements || 0, // 🏁 Corregido mapeo del modelo
       ingredientsIds: currentIngredientIds,
     });
     setImageFile(null);
@@ -146,7 +153,9 @@ export default function ProductsManager() {
 
       if (product.isCustomizable) {
         data.append("maxProteins", (product.maxProteins || 0).toString());
-        data.append("maxIngredients", (product.maxIngredients || 0).toString());
+        data.append("maxAderezos", (product.maxAderezos || 0).toString());
+        data.append("maxBarra", (product.maxBarra || 0).toString());
+        data.append("maxComplements", (product.maxComplements || 0).toString()); // 🏁 Corregido campo FormData
 
         const currentIngredientIds =
           product.availableIngredients?.map((ai) => ai.ingredientId) || [];
@@ -185,7 +194,10 @@ export default function ProductsManager() {
 
       if (formData.isCustomizable) {
         data.append("maxProteins", formData.maxProteins.toString());
-        data.append("maxIngredients", formData.maxIngredients.toString());
+        data.append("maxAderezos", formData.maxAderezos.toString());
+        data.append("maxBarra", formData.maxBarra.toString());
+        data.append("maxComplements", formData.maxComplements.toString()); // 🏁 Corregido campo FormData
+
         formData.ingredientsIds.forEach((id) => {
           data.append("ingredientsIds", id);
         });
@@ -258,7 +270,7 @@ export default function ProductsManager() {
           </div>
         )}
 
-        {/* BARRA DE FILTROS (Nueva Sección) */}
+        {/* BARRA DE FILTROS */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="text-slate-400 shrink-0">
@@ -277,7 +289,6 @@ export default function ProductsManager() {
                   </option>
                 ))}
               </select>
-              {/* Flecha personalizada del select */}
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
                 <svg
                   className="fill-current h-4 w-4"
@@ -364,9 +375,12 @@ export default function ProductsManager() {
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md w-fit">
                             <Sliders size={12} /> Personalizable
                           </span>
-                          <span className="text-[11px] text-slate-400 font-normal">
-                            Max: {product.maxProteins} Prot /{" "}
-                            {product.maxIngredients} Ingr.
+                          {/* 🏁 Vista resumida en tabla con la variable corregida */}
+                          <span className="text-[10px] text-slate-400 font-normal tracking-tight">
+                            Prot: {product.maxProteins || 0} | Ade:{" "}
+                            {product.maxAderezos || 0} | Bar:{" "}
+                            {product.maxBarra || 0} | Comp:{" "}
+                            {product.maxComplements || 0}
                           </span>
                         </div>
                       ) : (
@@ -601,16 +615,50 @@ export default function ProductsManager() {
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                        Límite de Toppings / Aderezos
+                        Límite de Aderezos / Toppings
                       </label>
                       <input
                         type="number"
                         min="0"
-                        value={formData.maxIngredients}
+                        value={formData.maxAderezos}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            maxIngredients: parseInt(e.target.value) || 0,
+                            maxAderezos: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-slate-900 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                        Límite de Barra / Ensalada
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.maxBarra}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            maxBarra: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-slate-900 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                        Límite de Complementos
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.maxComplements}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            maxComplements: parseInt(e.target.value) || 0,
                           })
                         }
                         className="w-full border border-slate-200 bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-slate-900 font-semibold"

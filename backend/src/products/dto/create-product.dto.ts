@@ -15,21 +15,19 @@ export class CreateProductDto {
   @IsOptional()
   description?: string;
 
-  // 1. Convertir el precio de string a número flotante
   @Transform(({ value }) => Number(value))
   @IsNumber()
-  price?: number;
+  price!: number; // Obligatorio para alinearse con tu modelo de Prisma
 
   @IsString()
   categoryId!: string;
 
-  // 2. Convertir los booleanos de texto ("true"/"false") a booleanos reales
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   @IsOptional()
   isCustomizable?: boolean;
 
-  // 3. Convertir strings a enteros para la barra de ensaladas
+  // Límites específicos para la barra de ensaladas tal cual están en Prisma
   @Transform(({ value }) => Number(value))
   @IsInt()
   @IsOptional()
@@ -38,7 +36,17 @@ export class CreateProductDto {
   @Transform(({ value }) => Number(value))
   @IsInt()
   @IsOptional()
-  maxIngredients?: number;
+  maxAderezos?: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @IsOptional()
+  maxBarra?: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @IsOptional()
+  maxComplements?: number; // 🔥 Cambiado a inglés, igualito a tu schema.prisma
 
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()

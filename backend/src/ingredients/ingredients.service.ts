@@ -11,7 +11,6 @@ import { createClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class IngredientsService {
-  // Inicializamos el cliente de Supabase solo para usar el Storage
   private supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_KEY!,
@@ -19,12 +18,12 @@ export class IngredientsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  // POST /ingredients - Crear con imagen
+  // POST /ingredients - Crear con imagen y categoría
   async createWithImage(
     createIngredientDto: CreateIngredientDto,
     file: Express.Multer.File,
   ) {
-    const { name, price, isActive } = createIngredientDto;
+    const { name, price, isActive, category } = createIngredientDto;
 
     const isExtra = price && price > 0 ? true : false;
     let imageUrl: string | null = null;
@@ -68,6 +67,7 @@ export class IngredientsService {
         isExtra,
         isActive: isActive ?? true,
         imageUrl,
+        category,
       },
     });
   }
@@ -92,14 +92,12 @@ export class IngredientsService {
     return ingredient;
   }
 
-  // PUT /ingredients/:id - ACTUALIZADO Y CORREGIDO (3 ARGUMENTOS)
+  // PUT /ingredients/:id - Actualizar con soporte para categoría
   async update(
     id: string,
     updateIngredientDto: UpdateIngredientDto,
-    file?: Express.Multer.File, // 👈 Recibe el archivo de manera opcional
+    file?: Express.Multer.File,
   ) {
-    // 1. Buscamos el ingrediente directo en la base de datos.
-    // Usamos findUnique en lugar de 'this.findOne(id)' para evitar fallos si estás reactivando un ingrediente inactivo desde la tabla.
     const ingredient = await this.prisma.ingredient.findUnique({
       where: { id },
     });
@@ -108,18 +106,20 @@ export class IngredientsService {
       throw new NotFoundException(`Ingrediente con ID ${id} no encontrado`);
     }
 
-    const { name, price, isActive } = updateIngredientDto;
+    const { name, price, isActive, category } = updateIngredientDto;
     const dataToUpdate: Prisma.IngredientUpdateInput = {};
 
     if (name !== undefined) dataToUpdate.name = name;
     if (isActive !== undefined) dataToUpdate.isActive = isActive;
+
+    // 🚀 CORREGIDO: Eliminado 'as any'
+    if (category !== undefined) dataToUpdate.category = category;
 
     if (price !== undefined) {
       dataToUpdate.price = price;
       dataToUpdate.isExtra = price > 0;
     }
 
-    // 2. Si el usuario adjuntó una nueva imagen en el formulario, la procesamos y subimos a Supabase
     if (file) {
       try {
         const fileExt = file.originalname.split('.').pop();
@@ -143,7 +143,6 @@ export class IngredientsService {
           .from('ingredients')
           .getPublicUrl(filePath);
 
-        // Agregamos la nueva URL al objeto de actualización de Prisma
         dataToUpdate.imageUrl = urlData.publicUrl;
       } catch (error) {
         console.error('Error al procesar la nueva imagen en update:', error);
@@ -153,7 +152,6 @@ export class IngredientsService {
       }
     }
 
-    // 3. Ejecutamos la actualización en la BD con Prisma (si file fue undefined, imageUrl no se altera)
     return this.prisma.ingredient.update({
       where: { id },
       data: dataToUpdate,

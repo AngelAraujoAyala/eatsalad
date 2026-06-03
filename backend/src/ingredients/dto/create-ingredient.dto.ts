@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsBoolean,
 } from 'class-validator';
+import { IngredientCategory } from '@prisma/client';
 
 export class CreateIngredientDto {
   @IsString()
@@ -26,4 +27,8 @@ export class CreateIngredientDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'La categoría es obligatoria' })
+  category?: IngredientCategory;
 }

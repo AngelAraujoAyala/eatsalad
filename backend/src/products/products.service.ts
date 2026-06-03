@@ -10,8 +10,9 @@ import * as dotenv from 'dotenv';
 import 'multer';
 import { UpdateProductIngredientsDto } from './dto/update-product-ingredients.dto';
 import { Prisma } from '@prisma/client';
+import { UpdateProductDto } from './dto/update-product.dto';
 
-// 1. FORZAR CARGA DEL .ENV: Evita que Supabase truene por variables undefined al arrancar
+// FORZAR CARGA DEL .ENV: Evita que Supabase truene por variables undefined al arrancar
 dotenv.config();
 
 @Injectable()
@@ -22,7 +23,6 @@ export class ProductsService {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_KEY;
 
-    // Validación preventiva clara
     if (!supabaseUrl || !supabaseKey) {
       throw new Error(
         'CRÍTICO: SUPABASE_URL o SUPABASE_KEY no están definidas en tu archivo .env',
@@ -67,13 +67,10 @@ export class ProductsService {
   // 3. CREAR PRODUCTO (CON IMAGEN E INGREDIENTES)
   async create(dto: CreateProductDto, imageFile?: Express.Multer.File) {
     let imageUrl: string | null = null;
-
     if (imageFile) {
       imageUrl = await this.uploadImageToSupabase(imageFile);
     }
 
-    // Extraemos TODAS las variables que vienen del FormData para limpiarlas
-    // y evitar que el ...productData se las lleve sucias a Prisma
     const {
       ingredientsIds,
       categoryId,
@@ -81,11 +78,12 @@ export class ProductsService {
       isActive,
       isCustomizable,
       maxProteins,
-      maxIngredients,
+      maxAderezos,
+      maxBarra,
+      maxComplements, // Directo en inglés desde el DTO
       ...productData
     } = dto;
 
-    // Unificación de ingredientes a Array seguro
     let normalizedIngredients: string[] = [];
     if (ingredientsIds) {
       normalizedIngredients = Array.isArray(ingredientsIds)
@@ -97,10 +95,11 @@ export class ProductsService {
       return await this.prisma.client.product.create({
         data: {
           ...productData,
-          // Casteos explícitos y seguros anti-FormData strings:
           price: price ? Number(price) : 0,
           maxProteins: maxProteins ? Number(maxProteins) : 0,
-          maxIngredients: maxIngredients ? Number(maxIngredients) : 0,
+          maxAderezos: maxAderezos ? Number(maxAderezos) : 0,
+          maxBarra: maxBarra ? Number(maxBarra) : 0,
+          maxComplements: maxComplements ? Number(maxComplements) : 0,
           isActive: String(isActive) === 'true' || isActive === true,
           isCustomizable:
             String(isCustomizable) === 'true' || isCustomizable === true,
@@ -121,7 +120,7 @@ export class ProductsService {
       });
     } catch (error) {
       throw new BadRequestException(
-        `Error: ${error instanceof Error ? error.message : String(error)} al crear el producto en la base de datos`,
+        `Error al crear el producto: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -154,13 +153,13 @@ export class ProductsService {
     return publicUrlData.publicUrl;
   }
 
+  // 4. ACTUALIZAR EXCLUSIVA DE INGREDIENTES (RUTA INDEPENDIENTE)
   async updateIngredients(
     productId: string,
     updateDto: UpdateProductIngredientsDto,
   ) {
     const { ingredientIds } = updateDto;
 
-    // 1. Validar que el producto exista y esté activo
     const product = await this.prisma.product.findFirst({
       where: { id: productId, isActive: true },
     });
@@ -171,7 +170,6 @@ export class ProductsService {
       );
     }
 
-    // 2. Si mandan ingredientes, validar que todos existan en la BD y estén activos
     if (ingredientIds.length > 0) {
       const dbIngredients = await this.prisma.ingredient.findMany({
         where: {
@@ -187,14 +185,11 @@ export class ProductsService {
       }
     }
 
-    // 3. Ejecutar la actualización relacional de forma atómica (Transacción limpia)
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // A) Limpiar los ingredientes que tenía asignados previamente
       await tx.productIngredient.deleteMany({
         where: { productId },
       });
 
-      // B) Si el arreglo trae elementos, insertamos las nuevas relaciones
       if (ingredientIds.length > 0) {
         await tx.productIngredient.createMany({
           data: ingredientIds.map((ingId) => ({
@@ -204,7 +199,6 @@ export class ProductsService {
         });
       }
 
-      // C) Retornar el producto con sus ingredientes actualizados para confirmar al cliente
       return tx.product.findUnique({
         where: { id: productId },
         include: {
@@ -218,39 +212,97 @@ export class ProductsService {
     });
   }
 
+  // 5. ACTUALIZAR PRODUCTO (MAESTRO DESDE EL MODAL DEL FRONTEND)
   async update(
     id: string,
-    dto: CreateProductDto,
+    dto: UpdateProductDto,
     imageFile?: Express.Multer.File,
   ) {
-    // 1. Verificar si el producto existe
     const existingProduct = await this.findOne(id);
     let imageUrl = existingProduct.imageUrl;
 
-    // 2. Si subió nueva foto, se procesa
     if (imageFile) {
       imageUrl = await this.uploadImageToSupabase(imageFile);
     }
 
+    const { ingredientsIds, categoryId, ...restDto } = dto;
+
+    const updateData: Prisma.ProductUpdateInput = {
+      name: restDto.name,
+      description: restDto.description,
+      imageUrl,
+    };
+
+    if (restDto.isActive !== undefined) {
+      updateData.isActive =
+        String(restDto.isActive) === 'true' || restDto.isActive === true;
+    }
+    if (restDto.isCustomizable !== undefined) {
+      updateData.isCustomizable =
+        String(restDto.isCustomizable) === 'true' ||
+        restDto.isCustomizable === true;
+    }
+    if (restDto.price !== undefined) updateData.price = Number(restDto.price);
+
+    // Mapeo directo uno a uno con el DTO en inglés
+    if (restDto.maxProteins !== undefined)
+      updateData.maxProteins = Number(restDto.maxProteins);
+    if (restDto.maxAderezos !== undefined)
+      updateData.maxAderezos = Number(restDto.maxAderezos);
+    if (restDto.maxBarra !== undefined)
+      updateData.maxBarra = Number(restDto.maxBarra);
+    if (restDto.maxComplements !== undefined)
+      updateData.maxComplements = Number(restDto.maxComplements);
+
+    if (categoryId) {
+      updateData.category = {
+        connect: { id: categoryId },
+      };
+    }
+
     try {
-      // Mapeo explícito de propiedades para cumplir con las reglas estrictas de ESLint
+      // Si el modal del frontend envía el arreglo de checkboxes de ingredientes
+      if (ingredientsIds !== undefined) {
+        let normalizedIngredients: string[] = [];
+        if (ingredientsIds) {
+          normalizedIngredients = Array.isArray(ingredientsIds)
+            ? ingredientsIds
+            : [ingredientsIds];
+        }
+
+        return await this.prisma.$transaction(async (tx) => {
+          // A) Limpiar los ingredientes anteriores del producto
+          await tx.productIngredient.deleteMany({ where: { productId: id } });
+
+          // B) Vincular los nuevos checkboxes que vienen seleccionados
+          if (normalizedIngredients.length > 0) {
+            await tx.productIngredient.createMany({
+              data: normalizedIngredients.map((ingId) => ({
+                productId: id,
+                ingredientId: ingId,
+              })),
+            });
+          }
+
+          // C) Actualizar los datos del producto
+          return tx.product.update({
+            where: { id },
+            data: updateData,
+            include: {
+              category: true,
+              availableIngredients: { include: { ingredient: true } },
+            },
+          });
+        });
+      }
+
+      // Si el formulario no envió ingredientes, hacemos el update directo clásico
       return await this.prisma.client.product.update({
         where: { id },
-        data: {
-          name: dto.name,
-          description: dto.description,
-          // FormData envía strings; aseguramos el casteo correcto
-          isActive: String(dto.isActive) === 'true' || dto.isActive === true,
-          isCustomizable:
-            String(dto.isCustomizable) === 'true' ||
-            dto.isCustomizable === true,
-          maxProteins: dto.maxProteins ? Number(dto.maxProteins) : 0,
-          maxIngredients: dto.maxIngredients ? Number(dto.maxIngredients) : 0,
-          price: dto.price ? Number(dto.price) : 0,
-          imageUrl,
-          category: {
-            connect: { id: dto.categoryId },
-          },
+        data: updateData,
+        include: {
+          category: true,
+          availableIngredients: { include: { ingredient: true } },
         },
       });
     } catch (error) {

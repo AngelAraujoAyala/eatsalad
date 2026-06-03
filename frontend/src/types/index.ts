@@ -1,10 +1,11 @@
 export interface Ingredient {
   id: string;
   name: string;
-  price: number; // Prisma Decimal se recibe como número o string convertible
+  price: number;
   isExtra: boolean;
   isActive: boolean;
   imageUrl?: string;
+  category: "PROTEINA" | "BARRA" | "COMPLEMENTO" | "ADEREZO";
 }
 
 export interface Product {
@@ -16,10 +17,12 @@ export interface Product {
   isActive: boolean;
   categoryId: string;
   category?: Category;
-  
+
   isCustomizable: boolean;
   maxProteins?: number | null;
-  maxIngredients?: number | null;
+  maxAderezos: number;
+  maxBarra: number;
+  maxComplements: number;
 
   availableIngredients?: ProductIngredient[];
 }
@@ -29,7 +32,6 @@ export interface ProductIngredient {
   ingredientId: string;
   ingredient?: Ingredient;
 }
-
 
 export interface Category {
   id: string;
@@ -54,5 +56,5 @@ export interface Combo {
   items: ComboItem[];
 }
 
-export type CreateIngredientInput = Omit<Ingredient, 'id'>;
+export type CreateIngredientInput = Omit<Ingredient, "id">;
 export type UpdateIngredientInput = Partial<CreateIngredientInput>;
