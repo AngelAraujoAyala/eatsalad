@@ -7,11 +7,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Category {
-  id       String    @id @default(uuid())
-  name     String
-  imageUrl String?
-  products Product[]
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum ServiceType {
+  COMEDOR
+  RECOGER
 }
 
 enum IngredientCategory {
@@ -21,100 +23,107 @@ enum IngredientCategory {
   ADEREZO
 }
 
-model Product {
-  id          String   @id @default(uuid())
-  name        String
-  price       Decimal  @db.Decimal(10, 2)
-  description String?
-  imageUrl    String?
-  isActive    Boolean  @default(true)
-  @@index([isActive])
-  
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
-  availableIngredients ProductIngredient[]
-  
-  // Configuración de ensaladas / reglas de negocio
-  isCustomizable Boolean @default(false)
-  maxProteins    Int?
-  maxIngredients Int?
-  maxBarra             Int?                @default(0) // Ej. Base / Lechugas / Atados
-  maxComplements       Int?                @default(0) // Ej. Toppings secos o crutones
-  maxAderezos         Int?                @default(0) // Ej. Aderezos
-  
-  orderItems  OrderItem[]
-  comboItems  ComboItem[]
-}
-
-// Tabla para manejar los "Toppings extra" y "Proteinas" que pueden ser cambiadas
-// Esto permite que el admin cree "Extra de Pollo", "Extra de Aguacate", etc.
-model Ingredient {
-  id        String  @id @default(uuid())
-  name      String
-  price     Decimal @default(0) @db.Decimal(10, 2)// 0 si es parte de la barra, costo si es extra
-  isExtra   Boolean @default(false)
-  isActive  Boolean @default(true)
-  imageUrl  String?
-
-  category  IngredientCategory?
-
-  products  ProductIngredient[] 
-}
-
-model ProductIngredient {
-  productId    String
-  ingredientId String
-  
-  product      Product    @relation(fields: [productId], references: [id])
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
-
-  @@id([productId, ingredientId]) // Clave compuesta para evitar duplicados
-}
-
-model Order {
-  id        String      @id @default(uuid())
-  total     Decimal
-  status    OrderStatus @default(PENDIENTE)
-  createdAt DateTime    @default(now())
-  items     OrderItem[]
-}
-
-model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  productId String
-  order     Order   @relation(fields: [orderId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
-  quantity  Int
-  priceAtPurchase Decimal @db.Decimal(10, 2)
-  
-  // JSON para capturar la personalización específica:
-  // { "protein": ["pollo", "boneless"], "toppings": ["aguacate"], "aderezos": ["ranch"] }
-  configuration Json 
-}
-
 enum OrderStatus {
   PENDIENTE
   FINALIZADO
   CANCELADO
 }
 
+// ==========================================
+// MODELOS
+// ==========================================
+
+model Category {
+  id       String    @id @default(uuid())
+  name     String
+  imageUrl String?
+  products Product[]
+}
+
+model Product {
+  id                   String              @id @default(uuid())
+  name                 String
+  price                Decimal             @db.Decimal(10, 2)
+  description          String?
+  imageUrl             String?
+  isActive             Boolean             @default(true)
+  categoryId           String
+  category             Category            @relation(fields: [categoryId], references: [id])
+  availableIngredients ProductIngredient[]
+  
+  // Configuración de ensaladas / reglas de negocio
+  isCustomizable       Boolean             @default(false)
+  maxProteins          Int?
+  maxIngredients       Int?
+  maxBarra             Int?                @default(0)
+  maxComplements       Int?                @default(0)
+  maxAderezos          Int?                @default(0)
+  
+  orderItems           OrderItem[]
+  comboItems           ComboItem[]
+
+  @@index([isActive])
+}
+
+model Ingredient {
+  id        String              @id @default(uuid())
+  name      String
+  price     Decimal             @default(0) @db.Decimal(10, 2)
+  isExtra   Boolean             @default(false)
+  isActive  Boolean             @default(true)
+  imageUrl  String?
+  category  IngredientCategory?
+  products  ProductIngredient[] 
+}
+
+model ProductIngredient {
+  productId    String
+  ingredientId String
+  product      Product    @relation(fields: [productId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@id([productId, ingredientId])
+}
+
+model Order {
+  id           String      @id @default(uuid())
+  customerName String      // Nombre del cliente para el flujo de EatSalad
+  serviceType  ServiceType // COMEDOR o RECOGER
+  pickupTime   String?     // Opcional. Almacena la hora formateada (Ej. "18:45") si es para recoger
+  total        Decimal     @db.Decimal(10, 2)
+  status       OrderStatus @default(PENDIENTE)
+  createdAt    DateTime    @default(now())
+  items        OrderItem[]
+}
+
+model OrderItem {
+  id              String   @id @default(uuid())
+  orderId         String
+  productId       String
+  order           Order    @relation(fields: [orderId], references: [id])
+  product         Product  @relation(fields: [productId], references: [id])
+  quantity        Int
+  priceAtPurchase Decimal  @db.Decimal(10, 2)
+  configuration   Json     
+}
+
 model Combo {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   name        String
   description String?
   imageUrl    String?
-  price       Decimal  @db.Decimal(10, 2)
-  isActive    Boolean  @default(true)
-  items     ComboItem[]
+  price       Decimal     @db.Decimal(10, 2)
+  isActive    Boolean     @default(true)
+  items       ComboItem[]
 }
 
 model ComboItem {
   comboId   String
   productId String
   quantity  Int
-  combo     Combo    @relation(fields: [comboId], references: [id])
-  product   Product  @relation(fields: [productId], references: [id])
+  combo     Combo   @relation(fields: [comboId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+
   @@id([comboId, productId])
 }
 

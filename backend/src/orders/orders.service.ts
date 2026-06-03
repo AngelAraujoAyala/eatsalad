@@ -13,7 +13,8 @@ export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createOrderDto: CreateOrderDto) {
-    const { items } = createOrderDto;
+    // Extraemos los nuevos campos operativos junto con los ítems
+    const { items, customerName, serviceType, pickupTime } = createOrderDto;
 
     if (items.length === 0) {
       throw new BadRequestException(
@@ -60,7 +61,6 @@ export class OrdersService {
         }
 
         // --- 🛡️ VALIDACIÓN DE INGREDIENTES PERSONALIZADOS ---
-        // Extraemos todos los IDs de ingredientes enviados en el JSON configuration
         const sentIngredientIds: string[] = [];
         if (item.configuration && typeof item.configuration === 'object') {
           Object.values(item.configuration).forEach((value) => {
@@ -109,9 +109,12 @@ export class OrdersService {
         };
       });
 
-      // 3. Crear la orden e insertar los ítems
+      // 3. Crear la orden incluyendo la nueva metadata de EatSalad
       return tx.order.create({
         data: {
+          customerName,
+          serviceType,
+          pickupTime: serviceType === 'RECOGER' ? pickupTime : null, // Sanitización extra en BD
           total: orderTotal,
           items: {
             createMany: {
@@ -182,7 +185,6 @@ export class OrdersService {
   }
 
   async updateStatus(id: string, updateOrderStatusDto: UpdateOrderStatusDto) {
-    // Validamos que exista la orden antes de cambiar el estado
     await this.findOne(id);
 
     return this.prisma.order.update({

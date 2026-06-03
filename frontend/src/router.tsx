@@ -1,8 +1,8 @@
 import { createBrowserRouter } from "react-router-dom";
 import WelcomePage from "./pages/WelcomePage";
 import TabletPage from "./pages/TabletPage";
-import OrderFlowPage from "./features/order/OrderFlowPage";
 import AdminDashboardPage from "./features/admin/AdminDashboardPage";
+import CustomerOrderFlow from "./features/order/CustomerOrderFlow";
 
 export const router = createBrowserRouter([
   {
@@ -11,7 +11,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/ordenar",
-    element: <OrderFlowPage />,
+    element: <CustomerOrderFlow />,
   },
   {
     path: "/tablet",
