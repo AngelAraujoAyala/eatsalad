@@ -366,14 +366,13 @@ export default function IngredientsManager() {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  placeholder="Ej. Arrachera"
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-slate-900 font-medium"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Categoría de Ensalada
+                  Categoría de Ingrediente
                 </label>
                 <select
                   value={formData.category}

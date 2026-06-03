@@ -137,6 +137,17 @@ export default function ProductsManager() {
     });
   };
 
+  const handleToggleAllIngredients = () => {
+    const allActiveIds = ingredients.map((ing) => ing.id);
+    const isAllSelected =
+      formData.ingredientsIds.length === allActiveIds.length;
+
+    setFormData((prev) => ({
+      ...prev,
+      ingredientsIds: isAllSelected ? [] : allActiveIds,
+    }));
+  };
+
   // 6. Interruptor rápido para cambiar estado directo en la tabla
   const handleToggleStatus = async (product: Product) => {
     setIsLoading(true);
@@ -469,7 +480,6 @@ export default function ProductsManager() {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    placeholder="Ej. Bowl Teriyaki Pollo"
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-slate-900 font-medium"
                   />
                 </div>
@@ -509,7 +519,6 @@ export default function ProductsManager() {
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    placeholder="Ej. Con cama de arroz, aguacate, pepino, sésamo..."
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-slate-900 font-medium"
                   />
                 </div>
@@ -615,7 +624,7 @@ export default function ProductsManager() {
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                        Límite de Aderezos / Toppings
+                        Límite de Aderezos
                       </label>
                       <input
                         type="number"
@@ -632,7 +641,7 @@ export default function ProductsManager() {
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                        Límite de Barra / Ensalada
+                        Límite de Barra
                       </label>
                       <input
                         type="number"
@@ -671,10 +680,24 @@ export default function ProductsManager() {
               {/* Bloque 5: Selección de Ingredientes en Barra */}
               {formData.isCustomizable && (
                 <div className="space-y-2 animate-in fade-in duration-200">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Ingredientes permitidos para ensamble (
-                    {formData.ingredientsIds.length})
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Ingredientes permitidos para ensamble (
+                      {formData.ingredientsIds.length})
+                    </label>
+                    {ingredients.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleToggleAllIngredients}
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors bg-emerald-50 hover:bg-emerald-100/70 px-2.5 py-1 rounded-lg border border-emerald-200/50"
+                      >
+                        {formData.ingredientsIds.length === ingredients.length
+                          ? "Desmarcar todos"
+                          : "Seleccionar todos"}
+                      </button>
+                    )}
+                  </div>
+
                   <div className="border border-slate-200 rounded-xl bg-white max-h-44 overflow-y-auto p-2.5 grid grid-cols-2 gap-2">
                     {ingredients.length === 0 ? (
                       <p className="text-xs text-slate-400 p-2 col-span-2 text-center">
