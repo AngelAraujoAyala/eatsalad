@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 import WelcomePage from "./pages/WelcomePage";
 import TabletPage from "./pages/TabletPage";
 import AdminDashboardPage from "./features/admin/AdminDashboardPage";
-import CustomerOrderFlow from "./features/order/CustomerOrderFlow";
+import CustomerOrderFlow from "./features/customer/CustomerOrderFlow";
 
 export const router = createBrowserRouter([
   {

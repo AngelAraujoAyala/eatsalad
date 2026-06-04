@@ -58,3 +58,33 @@ export interface Combo {
 
 export type CreateIngredientInput = Omit<Ingredient, "id">;
 export type UpdateIngredientInput = Partial<CreateIngredientInput>;
+export type ServiceType = 'COMEDOR' | 'RECOGER';
+export type OrderStatus = 'PENDIENTE' | 'FINALIZADO' | 'CANCELADO';
+
+export interface OrderItemDto {
+  productId: string;
+  quantity: number;
+  configuration: Record<string, string[]>;
+}
+
+export interface CreateOrderDto {
+  customerName: string;
+  serviceType: ServiceType;
+  pickupTime?: string; // Opcional
+  items: OrderItemDto[];
+}
+
+export interface UpdateOrderStatusDto {
+  status: OrderStatus;
+}
+
+export interface Order {
+  id: string;
+  customerName: string;
+  serviceType: ServiceType;
+  pickupTime: string | null;
+  total: number;
+  status: OrderStatus;
+  createdAt: string;
+  items?: string[]; // Puedes tipar el detalle del producto según lo requieras en la UI
+}
