@@ -10,7 +10,7 @@ export default function WelcomePage() {
       {/* SECCIÓN SUPERIOR: LOGO ORIGINAL */}
       <div className="flex flex-col items-center text-center mt-6">
         <img 
-          src="/eat_salad_logo.webp" 
+          src="/eat_salad_logo.png" 
           alt="Eat Salad Logo"
           className="h-28 w-auto object-contain mb-2 transition-transform hover:scale-105 duration-300"
         />
@@ -83,7 +83,7 @@ export default function WelcomePage() {
           onClick={() => navigate("/ordenar")}
           className="w-full bg-linear-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-between transition-all active:scale-[0.98] shadow-lg shadow-emerald-200/60"
         >
-          <span className="text-lg tracking-wide pl-1">Ordena ya</span>
+          <span className="text-lg tracking-wide pl-1">¡Ordena ya!</span>
           <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
             <ArrowRight size={18} className="text-white" strokeWidth={2.5} />
           </div>

@@ -32,13 +32,14 @@ export class ProductsService {
     this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
-  // 1. OBTENER TODOS LOS PRODUCTOS ACTIVOS
+  // 1. OBTENER TODOS LOS PRODUCTOS ACTIVOS (CON SUS REGLAS)
   async findAll() {
     return this.prisma.product.findMany({
       include: {
         category: {
           select: { id: true, name: true },
         },
+        rules: true, // 👈 NUEVO: Trae las reglas de negocio asignadas
         availableIngredients: {
           include: {
             ingredient: true,
@@ -54,6 +55,7 @@ export class ProductsService {
       where: { id },
       include: {
         category: true,
+        rules: true, // 👈 NUEVO: Incluye mínimos y máximos dinámicos
         availableIngredients: { include: { ingredient: true } },
       },
     });
@@ -64,7 +66,7 @@ export class ProductsService {
     return product;
   }
 
-  // 3. CREAR PRODUCTO (CON IMAGEN E INGREDIENTES)
+  // 3. CREAR PRODUCTO (CON IMAGEN, INGREDIENTES Y REGLAS DINÁMICAS)
   async create(dto: CreateProductDto, imageFile?: Express.Multer.File) {
     let imageUrl: string | null = null;
     if (imageFile) {
@@ -77,10 +79,7 @@ export class ProductsService {
       price,
       isActive,
       isCustomizable,
-      maxProteins,
-      maxAderezos,
-      maxBarra,
-      maxComplements, // Directo en inglés desde el DTO
+      rules, // 👈 NUEVO: Extraemos el arreglo de reglas del DTO
       ...productData
     } = dto;
 
@@ -96,10 +95,6 @@ export class ProductsService {
         data: {
           ...productData,
           price: price ? Number(price) : 0,
-          maxProteins: maxProteins ? Number(maxProteins) : 0,
-          maxAderezos: maxAderezos ? Number(maxAderezos) : 0,
-          maxBarra: maxBarra ? Number(maxBarra) : 0,
-          maxComplements: maxComplements ? Number(maxComplements) : 0,
           isActive: String(isActive) === 'true' || isActive === true,
           isCustomizable:
             String(isCustomizable) === 'true' || isCustomizable === true,
@@ -107,14 +102,27 @@ export class ProductsService {
           category: {
             connect: { id: categoryId },
           },
+          // 🔄 Creación ordenada de ingredientes relacionados
           availableIngredients: {
             create: normalizedIngredients.map((id: string) => ({
               ingredientId: id,
             })),
           },
+          // 🔄 NUEVO: Inserción directa de las reglas dinámicas en la base de datos
+          rules:
+            rules && rules.length > 0
+              ? {
+                  create: rules.map((rule) => ({
+                    category: rule.category,
+                    minQuantity: Number(rule.minQuantity),
+                    maxQuantity: Number(rule.maxQuantity),
+                  })),
+                }
+              : undefined,
         },
         include: {
           category: true,
+          rules: true, // Incluimos el retorno para validación en el cliente
           availableIngredients: true,
         },
       });
@@ -153,7 +161,7 @@ export class ProductsService {
     return publicUrlData.publicUrl;
   }
 
-  // 4. ACTUALIZAR EXCLUSIVA DE INGREDIENTES (RUTA INDEPENDIENTE)
+  // 4. ACTUALIZAR EXCLUSIVA DE INGREDIENTES
   async updateIngredients(
     productId: string,
     updateDto: UpdateProductIngredientsDto,
@@ -202,6 +210,7 @@ export class ProductsService {
       return tx.product.findUnique({
         where: { id: productId },
         include: {
+          rules: true,
           availableIngredients: {
             include: {
               ingredient: true,
@@ -225,7 +234,8 @@ export class ProductsService {
       imageUrl = await this.uploadImageToSupabase(imageFile);
     }
 
-    const { ingredientsIds, categoryId, ...restDto } = dto;
+    // 💡 Extraemos 'rules' del DTO para manejarlo de forma transaccional
+    const { ingredientsIds, categoryId, rules, ...restDto } = dto;
 
     const updateData: Prisma.ProductUpdateInput = {
       name: restDto.name,
@@ -242,17 +252,9 @@ export class ProductsService {
         String(restDto.isCustomizable) === 'true' ||
         restDto.isCustomizable === true;
     }
-    if (restDto.price !== undefined) updateData.price = Number(restDto.price);
-
-    // Mapeo directo uno a uno con el DTO en inglés
-    if (restDto.maxProteins !== undefined)
-      updateData.maxProteins = Number(restDto.maxProteins);
-    if (restDto.maxAderezos !== undefined)
-      updateData.maxAderezos = Number(restDto.maxAderezos);
-    if (restDto.maxBarra !== undefined)
-      updateData.maxBarra = Number(restDto.maxBarra);
-    if (restDto.maxComplements !== undefined)
-      updateData.maxComplements = Number(restDto.maxComplements);
+    if (restDto.price !== undefined) {
+      updateData.price = Number(restDto.price);
+    }
 
     if (categoryId) {
       updateData.category = {
@@ -261,47 +263,67 @@ export class ProductsService {
     }
 
     try {
-      // Si el modal del frontend envía el arreglo de checkboxes de ingredientes
-      if (ingredientsIds !== undefined) {
-        let normalizedIngredients: string[] = [];
-        if (ingredientsIds) {
-          normalizedIngredients = Array.isArray(ingredientsIds)
-            ? ingredientsIds
-            : [ingredientsIds];
-        }
-
+      // 🔄 Optamos por usar transacción si se modifican Ingredientes o Reglas dinámicas
+      if (ingredientsIds !== undefined || rules !== undefined) {
         return await this.prisma.$transaction(async (tx) => {
-          // A) Limpiar los ingredientes anteriores del producto
-          await tx.productIngredient.deleteMany({ where: { productId: id } });
+          // A) Sincronizar ingredientes si vienen en la petición
+          if (ingredientsIds !== undefined) {
+            await tx.productIngredient.deleteMany({ where: { productId: id } });
 
-          // B) Vincular los nuevos checkboxes que vienen seleccionados
-          if (normalizedIngredients.length > 0) {
-            await tx.productIngredient.createMany({
-              data: normalizedIngredients.map((ingId) => ({
-                productId: id,
-                ingredientId: ingId,
-              })),
-            });
+            let normalizedIngredients: string[] = [];
+            if (ingredientsIds) {
+              normalizedIngredients = Array.isArray(ingredientsIds)
+                ? ingredientsIds
+                : [ingredientsIds];
+            }
+
+            if (normalizedIngredients.length > 0) {
+              await tx.productIngredient.createMany({
+                data: normalizedIngredients.map((ingId) => ({
+                  productId: id,
+                  ingredientId: ingId,
+                })),
+              });
+            }
           }
 
-          // C) Actualizar los datos del producto
+          // B) Sincronizar Reglas Dinámicas de negocio si vienen en la petición
+          if (rules !== undefined) {
+            // Limpiamos las reglas vigentes para evitar conflictos de llave única
+            await tx.productRule.deleteMany({ where: { productId: id } });
+
+            // Si vienen reglas nuevas, las adjuntamos al update principal usando escrituras anidadas
+            if (rules.length > 0) {
+              updateData.rules = {
+                create: rules.map((rule) => ({
+                  category: rule.category,
+                  minQuantity: Number(rule.minQuantity),
+                  maxQuantity: Number(rule.maxQuantity),
+                })),
+              };
+            }
+          }
+
+          // C) Ejecutar la actualización maestra
           return tx.product.update({
             where: { id },
             data: updateData,
             include: {
               category: true,
+              rules: true,
               availableIngredients: { include: { ingredient: true } },
             },
           });
         });
       }
 
-      // Si el formulario no envió ingredientes, hacemos el update directo clásico
+      // Si el formulario no tocó ni ingredientes ni reglas, ejecutamos un update básico directo
       return await this.prisma.client.product.update({
         where: { id },
         data: updateData,
         include: {
           category: true,
+          rules: true,
           availableIngredients: { include: { ingredient: true } },
         },
       });

@@ -1,3 +1,15 @@
+
+export type IngredientCategory =
+  | "PROTEINA"
+  | "BARRA"
+  | "COMPLEMENTO"
+  | "ADEREZO"
+  | "TORTILLA"
+  | "PAN";
+
+export type ServiceType = "COMEDOR" | "RECOGER";
+export type OrderStatus = "PENDIENTE" | "FINALIZADO" | "CANCELADO";
+
 export interface Ingredient {
   id: string;
   name: string;
@@ -5,7 +17,15 @@ export interface Ingredient {
   isExtra: boolean;
   isActive: boolean;
   imageUrl?: string;
-  category: "PROTEINA" | "BARRA" | "COMPLEMENTO" | "ADEREZO";
+  category: IngredientCategory;
+}
+
+export interface ProductRule {
+  id: string;
+  productId: string;
+  category: IngredientCategory;
+  minQuantity: number;
+  maxQuantity: number;
 }
 
 export interface Product {
@@ -19,10 +39,8 @@ export interface Product {
   category?: Category;
 
   isCustomizable: boolean;
-  maxProteins?: number | null;
-  maxAderezos: number;
-  maxBarra: number;
-  maxComplements: number;
+
+  rules?: ProductRule[];
 
   availableIngredients?: ProductIngredient[];
 }
@@ -43,7 +61,7 @@ export interface Category {
 export interface ComboItem {
   productId: string;
   quantity: number;
-  product?: Product; // Traído opcionalmente por las relaciones de la base de datos
+  product?: Product;
 }
 
 export interface Combo {
@@ -58,8 +76,6 @@ export interface Combo {
 
 export type CreateIngredientInput = Omit<Ingredient, "id">;
 export type UpdateIngredientInput = Partial<CreateIngredientInput>;
-export type ServiceType = 'COMEDOR' | 'RECOGER';
-export type OrderStatus = 'PENDIENTE' | 'FINALIZADO' | 'CANCELADO';
 
 export interface OrderItemDto {
   productId: string;
@@ -70,7 +86,7 @@ export interface OrderItemDto {
 export interface CreateOrderDto {
   customerName: string;
   serviceType: ServiceType;
-  pickupTime?: string; // Opcional
+  pickupTime?: string;
   items: OrderItemDto[];
 }
 
@@ -86,5 +102,5 @@ export interface Order {
   total: number;
   status: OrderStatus;
   createdAt: string;
-  items?: string[]; // Puedes tipar el detalle del producto según lo requieras en la UI
+  items?: string[];
 }

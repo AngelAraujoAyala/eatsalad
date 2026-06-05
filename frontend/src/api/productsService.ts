@@ -10,29 +10,19 @@ export const productsService = {
 
   // POST /products
   create: async (formData: FormData): Promise<Product> => {
-    const { data } = await api.post<Product>("/products", formData, {
-      headers: {
-        // Dejamos que el navegador configure el boundary para el multipart/form-data con la imagen
-        "Content-Type": undefined,
-      },
-    });
+    // Axios detecta automáticamente el FormData y delega el Content-Type al navegador
+    const { data } = await api.post<Product>("/products", formData);
     return data;
   },
 
   // PATCH /products/:id
-  // Dejado listo en formato PATCH para cuando agregues la ruta general en tu controlador de NestJS
   update: async (id: string, formData: FormData): Promise<Product> => {
-    const { data } = await api.patch<Product>(`/products/${id}`, formData, {
-      headers: {
-        // Al igual que en el create, usamos undefined para manejar de forma segura el archivo adjunto
-        "Content-Type": undefined,
-      },
-    });
+    // Eliminamos los headers explícitos para limpiar el código
+    const { data } = await api.patch<Product>(`/products/${id}`, formData);
     return data;
   },
 
   // PATCH /products/:id/ingredients
-  // Consume directamente tu endpoint relacional enviando un JSON convencional (sin FormData)
   updateIngredients: async (
     id: string,
     dto: { ingredientIds: string[] },

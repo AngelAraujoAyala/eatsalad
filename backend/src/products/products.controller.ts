@@ -61,7 +61,7 @@ export class ProductsController {
   @UseInterceptors(FileInterceptor('file'))
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateProductDto: UpdateProductDto, // 🔥 Cambiado a UpdateProductDto para permitir actualizaciones parciales
+    @Body() updateProductDto: UpdateProductDto,
     @UploadedFile(
       new ParseFilePipe({
         validators: [

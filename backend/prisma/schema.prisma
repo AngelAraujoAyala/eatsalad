@@ -21,6 +21,8 @@ enum IngredientCategory {
   BARRA
   COMPLEMENTO
   ADEREZO
+  TORTILLA
+  PAN
 }
 
 enum OrderStatus {
@@ -51,18 +53,24 @@ model Product {
   category             Category            @relation(fields: [categoryId], references: [id])
   availableIngredients ProductIngredient[]
   
-  // Configuración de ensaladas / reglas de negocio
-  isCustomizable       Boolean             @default(false)
-  maxProteins          Int?
-  maxIngredients       Int?
-  maxBarra             Int?                @default(0)
-  maxComplements       Int?                @default(0)
-  maxAderezos          Int?                @default(0)
-  
+  isCustomizable       Boolean             @default(false) // Para saber si abre o no el modal
+  rules                ProductRule[]
+
   orderItems           OrderItem[]
   comboItems           ComboItem[]
 
   @@index([isActive])
+}
+
+model ProductRule {
+  id          String             @id @default(uuid())
+  productId   String
+  product     Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category    IngredientCategory
+  minQuantity Int                @default(0) // 💡 Si es 1 o más, significa que es OBLIGATORIO (ej. 1 Pan, 1 Tortilla)
+  maxQuantity Int                @default(1) // 💡 El límite máximo permitido antes de cobrar extra o bloquear
+
+  @@unique([productId, category]) // Evita que un producto tenga reglas duplicadas para la misma categoría
 }
 
 model Ingredient {

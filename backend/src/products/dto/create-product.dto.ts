@@ -4,8 +4,31 @@ import {
   IsBoolean,
   IsOptional,
   IsInt,
+  IsArray,
+  ValidateNested,
+  IsEnum,
+  Min,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+// 💡 Importamos plainToInstance
+import { Transform, Type, plainToInstance } from 'class-transformer';
+import { IngredientCategory } from '@prisma/client';
+
+export class ProductRuleDto {
+  @IsEnum(IngredientCategory, {
+    message: `La categoría debe ser uno de los siguientes valores: ${Object.values(IngredientCategory).join(', ')}`,
+  })
+  category!: IngredientCategory;
+
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(0, { message: 'La cantidad mínima no puede ser menor a 0' })
+  minQuantity!: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(0, { message: 'La cantidad máxima no puede ser menor a 0' })
+  maxQuantity!: number;
+}
 
 export class CreateProductDto {
   @IsString()
@@ -17,7 +40,7 @@ export class CreateProductDto {
 
   @Transform(({ value }) => Number(value))
   @IsNumber()
-  price!: number; // Obligatorio para alinearse con tu modelo de Prisma
+  price!: number;
 
   @IsString()
   categoryId!: string;
@@ -27,27 +50,6 @@ export class CreateProductDto {
   @IsOptional()
   isCustomizable?: boolean;
 
-  // Límites específicos para la barra de ensaladas tal cual están en Prisma
-  @Transform(({ value }) => Number(value))
-  @IsInt()
-  @IsOptional()
-  maxProteins?: number;
-
-  @Transform(({ value }) => Number(value))
-  @IsInt()
-  @IsOptional()
-  maxAderezos?: number;
-
-  @Transform(({ value }) => Number(value))
-  @IsInt()
-  @IsOptional()
-  maxBarra?: number;
-
-  @Transform(({ value }) => Number(value))
-  @IsInt()
-  @IsOptional()
-  maxComplements?: number; // 🔥 Cambiado a inglés, igualito a tu schema.prisma
-
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   @IsOptional()
@@ -55,4 +57,28 @@ export class CreateProductDto {
 
   @IsOptional()
   ingredientsIds?: string | string[];
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    // 🔄 Si viene como string (FormData), lo parseamos e instanciamos con plainToInstance
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed)
+          ? parsed.map((item) => plainToInstance(ProductRuleDto, item))
+          : [];
+      } catch {
+        return [];
+      }
+    }
+    // 🔄 Si ya viene como arreglo (por si acaso haces peticiones JSON directas en Postman)
+    if (Array.isArray(value)) {
+      return value.map((item) => plainToInstance(ProductRuleDto, item));
+    }
+    return value;
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductRuleDto)
+  rules?: ProductRuleDto[];
 }
