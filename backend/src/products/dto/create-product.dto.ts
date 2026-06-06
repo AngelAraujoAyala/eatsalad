@@ -9,7 +9,6 @@ import {
   IsEnum,
   Min,
 } from 'class-validator';
-// 💡 Importamos plainToInstance
 import { Transform, Type, plainToInstance } from 'class-transformer';
 import { IngredientCategory } from '@prisma/client';
 
@@ -55,6 +54,12 @@ export class CreateProductDto {
   @IsOptional()
   isActive?: boolean;
 
+  // Este campo lo asignaremos nosotros en el servicio después de subir la imagen.
+  // Ya no vendrá contaminado desde el FormData del frontend.
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
+
   @IsOptional()
   ingredientsIds?: string | string[];
 
@@ -81,4 +86,7 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductRuleDto)
   rules?: ProductRuleDto[];
+
+  @IsOptional()
+  file?: any;
 }

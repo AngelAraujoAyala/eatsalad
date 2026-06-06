@@ -39,7 +39,7 @@ export class ProductsService {
         category: {
           select: { id: true, name: true },
         },
-        rules: true, // 👈 NUEVO: Trae las reglas de negocio asignadas
+        rules: true,
         availableIngredients: {
           include: {
             ingredient: true,
@@ -51,11 +51,12 @@ export class ProductsService {
 
   // 2. OBTENER UN PRODUCTO POR ID
   async findOne(id: string) {
-    const product = await this.prisma.client.product.findUnique({
+    // 💡 Normalizado a this.prisma.product
+    const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
         category: true,
-        rules: true, // 👈 NUEVO: Incluye mínimos y máximos dinámicos
+        rules: true,
         availableIngredients: { include: { ingredient: true } },
       },
     });
@@ -73,15 +74,31 @@ export class ProductsService {
       imageUrl = await this.uploadImageToSupabase(imageFile);
     }
 
+    // 💡 Aislamos explícitamente cualquier propiedad inesperada que pueda venir en el payload
     const {
       ingredientsIds,
       categoryId,
       price,
       isActive,
       isCustomizable,
-      rules, // 👈 NUEVO: Extraemos el arreglo de reglas del DTO
-      ...productData
+      rules,
+      imageUrl: dtoImageUrl,
+      ...restDto
     } = dto;
+
+    // Construimos explícitamente el objeto que va a las columnas de la tabla Product
+    const productData: Prisma.ProductCreateInput = {
+      name: restDto.name,
+      description: restDto.description || '',
+      price: price ? Number(price) : 0,
+      isActive: String(isActive) === 'true' || isActive === true,
+      isCustomizable:
+        String(isCustomizable) === 'true' || isCustomizable === true,
+      imageUrl: imageUrl || dtoImageUrl || null,
+      category: {
+        connect: { id: categoryId },
+      },
+    };
 
     let normalizedIngredients: string[] = [];
     if (ingredientsIds) {
@@ -91,24 +108,17 @@ export class ProductsService {
     }
 
     try {
-      return await this.prisma.client.product.create({
+      // 💡 Normalizado a this.prisma.product
+      return await this.prisma.product.create({
         data: {
           ...productData,
-          price: price ? Number(price) : 0,
-          isActive: String(isActive) === 'true' || isActive === true,
-          isCustomizable:
-            String(isCustomizable) === 'true' || isCustomizable === true,
-          imageUrl,
-          category: {
-            connect: { id: categoryId },
-          },
           // 🔄 Creación ordenada de ingredientes relacionados
           availableIngredients: {
             create: normalizedIngredients.map((id: string) => ({
               ingredientId: id,
             })),
           },
-          // 🔄 NUEVO: Inserción directa de las reglas dinámicas en la base de datos
+          // 🔄 Inserción directa de las reglas dinámicas en la base de datos
           rules:
             rules && rules.length > 0
               ? {
@@ -122,7 +132,7 @@ export class ProductsService {
         },
         include: {
           category: true,
-          rules: true, // Incluimos el retorno para validación en el cliente
+          rules: true,
           availableIngredients: true,
         },
       });
@@ -234,7 +244,7 @@ export class ProductsService {
       imageUrl = await this.uploadImageToSupabase(imageFile);
     }
 
-    // 💡 Extraemos 'rules' del DTO para manejarlo de forma transaccional
+    // 💡 Extraemos de forma limpia todas las propiedades relacionales y de control
     const { ingredientsIds, categoryId, rules, ...restDto } = dto;
 
     const updateData: Prisma.ProductUpdateInput = {
@@ -263,10 +273,10 @@ export class ProductsService {
     }
 
     try {
-      // 🔄 Optamos por usar transacción si se modifican Ingredientes o Reglas dinámicas
+      // 🔄 Transacción para cuando cambian ingredientes o reglas dinámicas
       if (ingredientsIds !== undefined || rules !== undefined) {
         return await this.prisma.$transaction(async (tx) => {
-          // A) Sincronizar ingredientes si vienen en la petición
+          // A) Sincronizar ingredientes
           if (ingredientsIds !== undefined) {
             await tx.productIngredient.deleteMany({ where: { productId: id } });
 
@@ -287,12 +297,10 @@ export class ProductsService {
             }
           }
 
-          // B) Sincronizar Reglas Dinámicas de negocio si vienen en la petición
+          // B) Sincronizar Reglas Dinámicas
           if (rules !== undefined) {
-            // Limpiamos las reglas vigentes para evitar conflictos de llave única
             await tx.productRule.deleteMany({ where: { productId: id } });
 
-            // Si vienen reglas nuevas, las adjuntamos al update principal usando escrituras anidadas
             if (rules.length > 0) {
               updateData.rules = {
                 create: rules.map((rule) => ({
@@ -304,7 +312,7 @@ export class ProductsService {
             }
           }
 
-          // C) Ejecutar la actualización maestra
+          // C) Actualización maestra
           return tx.product.update({
             where: { id },
             data: updateData,
@@ -317,8 +325,9 @@ export class ProductsService {
         });
       }
 
-      // Si el formulario no tocó ni ingredientes ni reglas, ejecutamos un update básico directo
-      return await this.prisma.client.product.update({
+      // Si no hay cambios en relaciones, update plano directo
+      // 💡 Normalizado a this.prisma.product
+      return await this.prisma.product.update({
         where: { id },
         data: updateData,
         include: {

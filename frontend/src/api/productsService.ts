@@ -10,15 +10,23 @@ export const productsService = {
 
   // POST /products
   create: async (formData: FormData): Promise<Product> => {
-    // Axios detecta automáticamente el FormData y delega el Content-Type al navegador
-    const { data } = await api.post<Product>("/products", formData);
+    // 🚀 CORRECCIÓN: Forzamos el Content-Type correcto para evitar que se envíe como JSON
+    const { data } = await api.post<Product>("/products", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
     return data;
   },
 
   // PATCH /products/:id
   update: async (id: string, formData: FormData): Promise<Product> => {
-    // Eliminamos los headers explícitos para limpiar el código
-    const { data } = await api.patch<Product>(`/products/${id}`, formData);
+    // 🚀 CORRECCIÓN: Forzamos el Content-Type correcto aquí también
+    const { data } = await api.patch<Product>(`/products/${id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
     return data;
   },
 

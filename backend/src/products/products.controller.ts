@@ -16,7 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductIngredientsDto } from './dto/update-product-ingredients.dto';
-import { UpdateProductDto } from './dto/update-product.dto'; // 🔥 Importamos el DTO de actualización
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -28,17 +28,17 @@ export class ProductsController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file')) // El frontend debe enviar el archivo bajo el campo 'file'
+  @UseInterceptors(FileInterceptor('file'))
   create(
     @Body() createProductDto: CreateProductDto,
     @UploadedFile(
       new ParseFilePipe({
-        // Validación extra para asegurar que sea imagen y no pese más de 2MB
         validators: [
           new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 2 }),
-          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
+          // 🟢 OPTIMIZACIÓN: Evaluamos contra el MIME type usando una Regex sólida
+          new FileTypeValidator({ fileType: /image\/(jpeg|jpg|png|webp)/ }),
         ],
-        fileIsRequired: false, // Ponlo en true si la imagen es obligatoria
+        fileIsRequired: false,
       }),
     )
     file?: Express.Multer.File,
@@ -66,14 +66,14 @@ export class ProductsController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 2 }),
-          new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
+          // 🟢 OPTIMIZACIÓN: Misma Regex para la edición
+          new FileTypeValidator({ fileType: /image\/(jpeg|jpg|png|webp)/ }),
         ],
         fileIsRequired: false,
       }),
     )
     file?: Express.Multer.File,
   ): Promise<unknown> {
-    // El uso de updateProductDto aquí evita que falle por campos faltantes durante la edición
     return this.productsService.update(id, updateProductDto, file);
   }
 }

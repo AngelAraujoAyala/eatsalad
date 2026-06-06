@@ -106,7 +106,21 @@ export default function ProductsManager() {
     return product.categoryId === selectedCategoryFilter;
   });
 
-  // 3. Abrir modal para Crear
+  // 3. Cierre centralizado y seguro de modales (Evita fugas de memoria con imágenes)
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingProduct(null);
+
+    // 💡 IMPORTANTE: Solo revocar si es un blob local generado por el navegador
+    if (previewUrl && previewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setImageFile(null);
+    setPreviewUrl(null);
+  };
+
+  // 4. Abrir modal para Crear
   const handleOpenAdd = () => {
     setEditingProduct(null);
     setFormData({
@@ -128,13 +142,12 @@ export default function ProductsManager() {
     setIsModalOpen(true);
   };
 
-  // 4. Abrir modal para Editar
+  // 5. Abrir modal para Editar
   const handleOpenEdit = (product: Product) => {
     setEditingProduct(product);
     const currentIngredientIds =
       product.availableIngredients?.map((ai) => ai.ingredientId) || [];
 
-    // Mapeamos las reglas existentes del producto o inicializamos en 0 si no existen aún
     const builtRules = ALL_INGREDIENT_CATEGORIES.map((cat) => {
       const existingRule = product.rules?.find((r) => r.category === cat);
       return {
@@ -159,7 +172,7 @@ export default function ProductsManager() {
     setIsModalOpen(true);
   };
 
-  // 5. Checkbox manager de ingredientes
+  // 6. Checkbox manager de ingredientes
   const handleToggleIngredient = (id: string) => {
     setFormData((prev) => {
       const exists = prev.ingredientsIds.includes(id);
@@ -181,7 +194,6 @@ export default function ProductsManager() {
     }));
   };
 
-  // Manejar cambios individuales en los inputs de mínimos y máximos de las reglas
   const handleRuleChange = (
     category: IngredientCategory,
     field: "minQuantity" | "maxQuantity",
@@ -195,7 +207,7 @@ export default function ProductsManager() {
     }));
   };
 
-  // 6. Interruptor rápido para cambiar estado directo en la tabla
+  // 7. Interruptor rápido para cambiar estado directo en la tabla
   const handleToggleStatus = async (product: Product) => {
     setIsLoading(true);
     const nextStatus = !product.isActive;
@@ -210,7 +222,6 @@ export default function ProductsManager() {
       data.append("isCustomizable", product.isCustomizable.toString());
 
       if (product.isCustomizable && product.rules) {
-        // Preservamos las reglas actuales al mutar el estado de activación
         data.append("rules", JSON.stringify(product.rules));
       }
 
@@ -229,21 +240,20 @@ export default function ProductsManager() {
     }
   };
 
-  // 7. Submit centralizado (Multipart FormData + JSON Relacional de Reglas)
+  // 8. Envío de formulario
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       const data = new FormData();
-      data.append("name", formData.name);
+      data.append("name", formData.name.trim());
       data.append("price", formData.price.toString());
-      data.append("description", formData.description);
+      data.append("description", formData.description.trim());
       data.append("categoryId", formData.categoryId);
       data.append("isActive", formData.isActive.toString());
       data.append("isCustomizable", formData.isCustomizable.toString());
 
       if (formData.isCustomizable) {
-        // Enviamos el arreglo completo como string JSON que el backend procesará con su @Transform
         data.append("rules", JSON.stringify(formData.rules));
 
         formData.ingredientsIds.forEach((id) => {
@@ -251,26 +261,31 @@ export default function ProductsManager() {
         });
       }
 
-      if (imageFile) {
+      // Validación de archivo binario real
+      if (imageFile && imageFile instanceof File) {
         data.append("file", imageFile);
       }
 
       if (editingProduct) {
         await productsService.update(editingProduct.id, data);
-        await productsService.updateIngredients(editingProduct.id, {
-          ingredientIds: formData.ingredientsIds,
-        });
+
+        if (formData.isCustomizable) {
+          await productsService.updateIngredients(editingProduct.id, {
+            ingredientIds: formData.ingredientsIds,
+          });
+        }
       } else {
         await productsService.create(data);
       }
 
-      setIsModalOpen(false);
-      setImageFile(null);
-      if (previewUrl && !editingProduct) URL.revokeObjectURL(previewUrl);
+      // Cerrar y limpiar de forma segura
+      handleCloseModal();
       await fetchData();
     } catch (err) {
-      console.error(err);
-      alert("Ocurrió un problema al guardar el producto. Verifica los datos.");
+      console.error("Error al procesar el guardado del producto:", err);
+      alert(
+        "Ocurrió un problema al guardar el producto. Verifica la consola y los tipos de datos.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -295,7 +310,7 @@ export default function ProductsManager() {
         </button>
       </header>
 
-      {/* Contenido */}
+      {/* Contenido principal */}
       <div className="flex-1 overflow-y-auto p-8 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -484,7 +499,7 @@ export default function ProductsManager() {
         </div>
       </div>
 
-      {/* MODAL DE OPERACIONES */}
+      {/* MODAL DE OPERACIONES CORREGIDO */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
@@ -495,8 +510,8 @@ export default function ProductsManager() {
                   : "Nuevo Producto en Menú"}
               </h3>
               <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                onClick={handleCloseModal}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X size={20} />
               </button>
@@ -582,7 +597,7 @@ export default function ProductsManager() {
                 </div>
               </div>
 
-              {/* Bloque 3: Carga de Imagen */}
+              {/* Bloque 3: Carga de Imagen Optimizado */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                   Imagen de Presentación (Max 2MB - PNG/JPG)
@@ -594,6 +609,12 @@ export default function ProductsManager() {
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
                         const file = e.target.files[0];
+
+                        // 💡 Limpieza previa: revocar el blob viejo si ya existía uno en este render
+                        if (previewUrl && previewUrl.startsWith("blob:")) {
+                          URL.revokeObjectURL(previewUrl);
+                        }
+
                         setImageFile(file);
                         setPreviewUrl(URL.createObjectURL(file));
                       }
@@ -787,7 +808,7 @@ export default function ProductsManager() {
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleCloseModal}
                   className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100 transition-colors"
                 >
                   Cancelar
